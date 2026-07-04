@@ -1,0 +1,128 @@
+{
+  "timestamp": 1783127139.724608,
+  "session_duration_seconds": 127.41005516052246,
+  "keys_stored": [
+    "original_task",
+    "last_output_planner",
+    "structured_plan",
+    "plan",
+    "last_output_researcher",
+    "research_data",
+    "research",
+    "write_round",
+    "last_output_writer",
+    "draft_v1",
+    "current_draft",
+    "last_output_critic",
+    "revision_count",
+    "latest_critique",
+    "critique",
+    "last_output_executor",
+    "final_deliverable"
+  ],
+  "write_operations": 17,
+  "history": [
+    {
+      "timestamp": 0.007004261016845703,
+      "action": "SET",
+      "key": "original_task",
+      "preview": "write a go-to-market strategy for an AI tutouring app in Nigeria"
+    },
+    {
+      "timestamp": 13.921117782592773,
+      "action": "SET",
+      "key": "last_output_planner",
+      "preview": "TASK BREAKDOWN:  \n1. [RESEARCHER] - Investigate Nigeria\u2019s edtech landscape: K\u201312 and tertiary enroll..."
+    },
+    {
+      "timestamp": 13.921117782592773,
+      "action": "SET",
+      "key": "structured_plan",
+      "preview": "TASK BREAKDOWN:  \n1. [RESEARCHER] - Investigate Nigeria\u2019s edtech landscape: K\u201312 and tertiary enroll..."
+    },
+    {
+      "timestamp": 13.921117782592773,
+      "action": "SET",
+      "key": "plan",
+      "preview": "TASK BREAKDOWN:  \n1. [RESEARCHER] - Investigate Nigeria\u2019s edtech landscape: K\u201312 and tertiary enroll..."
+    },
+    {
+      "timestamp": 36.01086616516113,
+      "action": "SET",
+      "key": "last_output_researcher",
+      "preview": "KEY FACTS:  \n- Nigeria has ~30 million K\u201312 students (UBEC 2023), with SS3 enrollment at ~1.8 millio..."
+    },
+    {
+      "timestamp": 36.01086616516113,
+      "action": "SET",
+      "key": "research_data",
+      "preview": "KEY FACTS:  \n- Nigeria has ~30 million K\u201312 students (UBEC 2023), with SS3 enrollment at ~1.8 millio..."
+    },
+    {
+      "timestamp": 36.01086616516113,
+      "action": "SET",
+      "key": "research",
+      "preview": "KEY FACTS:  \n- Nigeria has ~30 million K\u201312 students (UBEC 2023), with SS3 enrollment at ~1.8 millio..."
+    },
+    {
+      "timestamp": 36.016582012176514,
+      "action": "SET",
+      "key": "write_round",
+      "preview": "1"
+    },
+    {
+      "timestamp": 72.79640293121338,
+      "action": "SET",
+      "key": "last_output_writer",
+      "preview": "**Go-to-Market Strategy for \u201cTutuAI\u201d: An AI Tutoring App Built for Nigeria**  \n*Executive Brief (2-P..."
+    },
+    {
+      "timestamp": 72.79640293121338,
+      "action": "SET",
+      "key": "draft_v1",
+      "preview": "**Go-to-Market Strategy for \u201cTutuAI\u201d: An AI Tutoring App Built for Nigeria**  \n*Executive Brief (2-P..."
+    },
+    {
+      "timestamp": 72.79640293121338,
+      "action": "SET",
+      "key": "current_draft",
+      "preview": "**Go-to-Market Strategy for \u201cTutuAI\u201d: An AI Tutoring App Built for Nigeria**  \n*Executive Brief (2-P..."
+    },
+    {
+      "timestamp": 90.50202775001526,
+      "action": "SET",
+      "key": "last_output_critic",
+      "preview": "SCORES:  \n- Accuracy:     9/10  \n- Completeness: 8/10  \n- Clarity:      10/10  \n- Structure:    10/1..."
+    },
+    {
+      "timestamp": 90.50202775001526,
+      "action": "SET",
+      "key": "revision_count",
+      "preview": "1"
+    },
+    {
+      "timestamp": 90.50202775001526,
+      "action": "SET",
+      "key": "latest_critique",
+      "preview": "SCORES:  \n- Accuracy:     9/10  \n- Completeness: 8/10  \n- Clarity:      10/10  \n- Structure:    10/1..."
+    },
+    {
+      "timestamp": 90.50202775001526,
+      "action": "SET",
+      "key": "critique",
+      "preview": "SCORES:  \n- Accuracy:     9/10  \n- Completeness: 8/10  \n- Clarity:      10/10  \n- Structure:    10/1..."
+    },
+    {
+      "timestamp": 127.2952446937561,
+      "action": "SET",
+      "key": "last_output_executor",
+      "preview": "**Go-to-Market Strategy for *TutuAI*: An AI Tutoring App Built for Nigeria**  \n*Final Executive Deli..."
+    },
+    {
+      "timestamp": 127.2952446937561,
+      "action": "SET",
+      "key": "final_deliverable",
+      "preview": "**Go-to-Market Strategy for *TutuAI*: An AI Tutoring App Built for Nigeria**  \n*Final Executive Deli..."
+    }
+  ]
+}
