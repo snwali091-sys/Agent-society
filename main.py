@@ -14,11 +14,13 @@ import argparse
 import json
 import sys
 import os
+import time
 
 # Make sure all modules are importable
 sys.path.insert(0, os.path.dirname(__file__))
 
 from orchestrator.orchestrator import AgentSocietyOrchestrator
+from database.db import save_session
 
 
 def print_result(result: dict):
@@ -83,13 +85,29 @@ def main():
             print("\nGoodbye!")
             return
 
+    start = time.time()
     orchestrator = AgentSocietyOrchestrator()
     result = orchestrator.run(task, max_rounds=args.rounds)
     print_result(result)
 
+    # ── SAVE TO DATABASE ─────────────────────────────────────────────────────
+    # This is what was missing before — every CLI run is now persisted
+    # to database/sessions.db, exactly like API runs already were.
+    session_id = save_session(
+        task=task,
+        plan=result["plan"],
+        research=result["research_summary"],
+        final_output=result["final_output"],
+        rounds_completed=result["rounds_completed"],
+        efficiency_gain=result["efficiency_gain"],
+        conversation_log=result["conversation_log"],
+    )
+    print(f"\n💾 Session saved to database with ID #{session_id}")
+    print(f"   Run 'python view_sessions.py' to see all saved sessions.")
+
     # Export memory snapshot for demo/judging
     orchestrator.memory.export_snapshot("session_snapshot.json")
-    print("\n📁 Memory snapshot saved to session_snapshot.json")
+    print(f"📁 Memory snapshot also saved to session_snapshot.json")
 
 
 if __name__ == "__main__":

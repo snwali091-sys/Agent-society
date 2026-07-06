@@ -11,13 +11,12 @@ It receives a complex task and decides:
 import json
 import re
 import os
+from datetime import date
 from dotenv import load_dotenv
-from openai import OpenAI 
+from openai import OpenAI
 
-# Load API key from .env file before any else
 load_dotenv()
 
-# Now import agents- 
 from agents.planner_agent import PlannerAgent
 from agents.researcher_agent import ResearcherAgent
 from agents.critic_agent import CriticAgent
@@ -27,13 +26,14 @@ from memory.shared_memory import SharedMemory
 
 # ─── QWEN CLOUD CLIENT ────────────────────────────────────────────────────────
 # All agents talk to Qwen models via this single client.
-# Just swap the base_url and api_key to use Qwen Cloud.
+# IMPORTANT: Qwen Cloud (home.qwencloud.com) keys require the INTERNATIONAL
+# DashScope endpoint below — the standard one returns 401 errors.
 client = OpenAI(
-    api_key=os.environ.get("DASHSCOPE_API_KEY"),      # Get from qwencloud.com
+    api_key=os.environ.get("DASHSCOPE_API_KEY"),
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
 
-MODEL = "qwen-plus"
+MODEL = "qwen-plus"   # You can also use qwen-max, qwen-turbo
 
 
 class AgentSocietyOrchestrator:
@@ -64,8 +64,21 @@ class AgentSocietyOrchestrator:
         print(f"\n🚀 AGENT SOCIETY ACTIVATED")
         print(f"📋 Task: {user_task}\n")
 
+        # ── DATE AWARENESS FIX ────────────────────────────────────────────────
+        # Without this, agents default to dates from their training data
+        # (e.g. writing deadlines like "2024-09-30" regardless of when the
+        # task actually runs). Every agent reads "original_task" from shared
+        # memory, so prepending today's real date here fixes it everywhere
+        # at once — no need to touch each agent's role prompt individually.
+        today_str = date.today().strftime("%B %d, %Y")
+        dated_task = (
+            f"[Today's date is {today_str}. Use this as the current date for "
+            f"any deadlines, timelines, or time-relative reasoning — do not "
+            f"default to dates from training data.]\n\n{user_task}"
+        )
+
         # Store the original task in shared memory so all agents can see it
-        self.memory.set("original_task", user_task)
+        self.memory.set("original_task", dated_task)
 
         # ── PHASE 1: PLANNING ─────────────────────────────────────────────────
         # The Planner reads the task and produces a step-by-step work breakdown

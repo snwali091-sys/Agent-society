@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agent Society — Web Interface</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e8ecf1; padding: 40px; }
+  .container { max-width: 850px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 6px; }
+  p.sub { color: #8b949e; margin-bottom: 30px; }
+
+  textarea { width: 100%; height: 90px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; color: #e8ecf1; padding: 14px; font-size: 15px; font-family: inherit; resize: vertical; }
+  textarea:focus { outline: none; border-color: #2e8ae6; }
+
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+  button { background: #2e8ae6; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { opacity: 0.9; }
+
+  .status { font-size: 14px; color: #f0d264; display: flex; align-items: center; gap: 10px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid #30363d; border-top-color: #f0d264; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .metrics { display: flex; gap: 16px; margin-top: 20px; }
+  .metric { background: #1b2129; border-radius: 8px; padding: 12px 20px; text-align: center; flex: 1; }
+  .metric .val { font-size: 22px; font-weight: 700; color: #6ee8be; }
+  .metric .lbl { font-size: 12px; color: #8b949e; margin-top: 4px; }
+
+  /* ---- Rendered markdown output styling ---- */
+  .result { margin-top: 24px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 28px 32px; display: none; line-height: 1.7; font-size: 15px; }
+  .result h1, .result h2, .result h3, .result h4, .result h5, .result h6 { color: #ffffff; margin: 22px 0 10px; font-weight: 700; }
+  .result h1:first-child, .result h2:first-child, .result h3:first-child, .result h4:first-child { margin-top: 0; }
+  .result h1 { font-size: 22px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+  .result h2 { font-size: 19px; color: #8ecbff; }
+  .result h3 { font-size: 17px; color: #6ee8be; }
+  .result h4 { font-size: 15px; color: #ffb454; }
+  .result h5, .result h6 { font-size: 14px; color: #c9d1d9; }
+  .result p { margin: 10px 0; color: #dfe4ea; }
+  .result strong { color: #ffffff; font-weight: 700; }
+  .result em { color: #c9d1d9; font-style: italic; }
+  .result ul, .result ol { margin: 8px 0 14px 22px; color: #dfe4ea; }
+  .result li { margin: 5px 0; }
+  .result code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; color: #f0d264; }
+  .result hr { border: none; border-top: 1px solid #30363d; margin: 18px 0; }
+  .result table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  .result th, .result td { border: 1px solid #30363d; padding: 8px 12px; text-align: left; font-size: 14px; }
+  .result th { background: #1b2129; color: #ffffff; }
+
+  .apiurl { font-size: 13px; color: #6a7280; margin-top: 34px; padding-top: 16px; border-top: 1px solid #21262d; }
+  input.apiinput { background: #161b22; border: 1px solid #30363d; color: #e8ecf1; padding: 6px 10px; border-radius: 6px; font-size: 13px; width: 220px; margin-left: 8px; }
+  .hint { font-size: 12px; color: #6a7280; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🤖 Agent Society</h1>
+  <p class="sub">Enter a task: The five AI agents will collaborate to complete it </p>
+
+  <textarea id="task" placeholder="e.g. Write a go-to-market strategy for an AI tutoring app in Nigeria"></textarea>
+  <div class="hint">Typical tasks take 30–90 seconds — five agents are calling Qwen Cloud in sequence, plus revision rounds.</div>
+
+  <div class="row">
+    <button id="runBtn" onclick="runTask()">Run Agent Society</button>
+    <div class="status" id="status">
+      <span class="spinner" id="spinner"></span>
+      <span id="statusText"></span>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics" style="display:none">
+    <div class="metric"><div class="val" id="mRounds">-</div><div class="lbl">Rounds</div></div>
+    <div class="metric"><div class="val" id="mEff">-</div><div class="lbl">Efficiency</div></div>
+    <div class="metric"><div class="val" id="mTime">-</div><div class="lbl">Time (s)</div></div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <div class="apiurl">
+    API endpoint:
+    <input class="apiinput" id="apiUrl" value="/run">
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------
+   Markdown -> HTML converter (dependency-free, tuned to what the
+   agents actually output: #### headers, mixed - and * bullets,
+   **bold**, numbered lists, simple pipe tables, horizontal rules).
+
+   CRITICAL ORDER: lists are extracted BEFORE bold/italic conversion.
+   Doing it in the opposite order (as the first version of this file did)
+   causes stray "* " bullet markers to get half-eaten by the italic
+   regex, corrupting entire sections — that was the bug reported.
+--------------------------------------------------------------------- */
+function renderMarkdown(md) {
+  let html = md;
+
+  // 1. Escape raw HTML first
+  html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // 2. Headers — supports 1 to 6 #'s, with or without a space after them
+  html = html.replace(/^#{6}\s*(.*)$/gm, '<h6>$1</h6>');
+  html = html.replace(/^#{5}\s*(.*)$/gm, '<h5>$1</h5>');
+  html = html.replace(/^#{4}\s*(.*)$/gm, '<h4>$1</h4>');
+  html = html.replace(/^#{3}\s*(.*)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^#{2}\s*(.*)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^#{1}\s*(.*)$/gm, '<h1>$1</h1>');
+
+  // 3. Horizontal rules
+  html = html.replace(/^(---+|===+)\s*$/gm, '<hr>');
+
+  // 4. Tables (simple pipe-delimited)
+  html = html.replace(/((?:^\|.*\|\s*$\n?)+)/gm, function(block) {
+    const rows = block.trim().split('\n').filter(r => !/^\|[\s:|-]+\|$/.test(r));
+    if (rows.length === 0) return block;
+    let out = '<table>';
+    rows.forEach((row, i) => {
+      const cells = row.split('|').slice(1, -1).map(c => c.trim());
+      const tag = i === 0 ? 'th' : 'td';
+      out += '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+    });
+    out += '</table>';
+    return out;
+  });
+
+  // 5. LISTS — extracted BEFORE bold/italic, this is the fix.
+  //    Handles "- ", "* ", "• " and numbered "1. " as list markers,
+  //    including lines with leading spaces (indented / nested bullets).
+  //    Nested items are flattened into one list — good enough for
+  //    agent-generated reports, avoids a full recursive parser.
+  html = html.replace(/(^[ \t]*[-*•][ \t]+.+$(?:\n[ \t]*[-*•][ \t]+.+$)*)/gm, function(block) {
+    const items = block.split('\n').map(l => l.replace(/^[ \t]*[-*•][ \t]+/, '').trim());
+    return '<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
+  });
+
+  html = html.replace(/(^[ \t]*\d+[.)][ \t]+.+$(?:\n[ \t]*\d+[.)][ \t]+.+$)*)/gm, function(block) {
+    const items = block.split('\n').map(l => l.replace(/^[ \t]*\d+[.)][ \t]+/, '').trim());
+    return '<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>';
+  });
+
+  // 6. Bold and italic — runs AFTER lists, so no stray "* " markers
+  //    are left at line-start to confuse the italic regex.
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^\*\n]+?)\*/g, '<em>$1</em>');
+
+  // 7. Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // 7b. SAFETY NET — strip any leftover unmatched ** or * markers.
+  //     These usually appear when the AI response got cut off mid-format
+  //     (hit a token limit) before a closing "**" arrived. Better to show
+  //     clean text than a stray pair of asterisks.
+  html = html.replace(/\*\*/g, '');
+  html = html.replace(/(?<![a-zA-Z0-9])\*(?![a-zA-Z0-9])/g, '');
+
+  // 8. Wrap remaining plain-text blocks in <p>, skip anything
+  //    already wrapped in a block tag by the steps above.
+  html = html.split(/\n{2,}/).map(block => {
+    const trimmed = block.trim();
+    if (!trimmed) return '';
+    if (/^<(h1|h2|h3|h4|h5|h6|ul|ol|table|hr)/.test(trimmed)) return trimmed;
+    return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+  }).join('\n');
+
+  return html;
+}
+
+let statusInterval = null;
+
+async function runTask() {
+  const task = document.getElementById('task').value.trim();
+  const apiUrl = document.getElementById('apiUrl').value.trim();
+  const btn = document.getElementById('runBtn');
+  const statusText = document.getElementById('statusText');
+  const spinner = document.getElementById('spinner');
+  const result = document.getElementById('result');
+  const metrics = document.getElementById('metrics');
+
+  if (!task) {
+    statusText.textContent = 'Please enter a task first.';
+    return;
+  }
+
+  btn.disabled = true;
+  spinner.classList.add('active');
+  result.style.display = 'none';
+  metrics.style.display = 'none';
+
+  let seconds = 0;
+  statusText.textContent = `Working — 0s elapsed`;
+  statusInterval = setInterval(() => {
+    seconds++;
+    statusText.textContent = `Working — ${seconds}s elapsed (Planner → Researcher → Writer → Critic → Executor)`;
+  }, 1000);
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: task, max_rounds: 2 })
+    });
+
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+
+    const data = await response.json();
+
+    clearInterval(statusInterval);
+    spinner.classList.remove('active');
+    statusText.textContent = '✅ Complete';
+
+    document.getElementById('mRounds').textContent = data.rounds_completed;
+    document.getElementById('mEff').textContent = data.efficiency_gain;
+    document.getElementById('mTime').textContent = data.processing_time_seconds;
+    metrics.style.display = 'flex';
+
+    result.innerHTML = renderMarkdown(data.final_output);
+    result.style.display = 'block';
+
+  } catch (err) {
+    clearInterval(statusInterval);
+    spinner.classList.remove('active');
+    statusText.textContent = `❌ Error: ${err.message}. Make sure the API server is running.`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
