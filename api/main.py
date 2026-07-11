@@ -60,6 +60,22 @@ class TaskResponse(BaseModel):
     agent_log: list
 
 
+class RefineRequest(BaseModel):
+    original_task: str              # The task originally submitted
+    previous_output: str            # The result the user is asking to improve
+    refinement_instruction: str     # What they want changed, e.g. "make it shorter"
+    max_rounds: int = 2
+
+
+class RefineResponse(BaseModel):
+    session_id: int
+    final_output: str
+    rounds_completed: int
+    efficiency_gain: str
+    processing_time_seconds: float
+    agent_log: list
+
+
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 
 @app.get("/api")
@@ -110,6 +126,55 @@ async def run_task(request: TaskRequest):
             final_output=result["final_output"],
             plan=result["plan"],
             research_summary=result["research_summary"],
+            rounds_completed=result["rounds_completed"],
+            efficiency_gain=result["efficiency_gain"],
+            processing_time_seconds=elapsed,
+            agent_log=result["conversation_log"],
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/refine", response_model=RefineResponse)
+async def refine_task(request: RefineRequest):
+    """
+    Continues work on an existing result instead of starting a brand new
+    task. This is what the "Refine this" box in the frontend calls.
+
+    Unlike /run, this does NOT re-run the Planner or Researcher — it feeds
+    the previous output and the new instruction straight to the Writer and
+    Critic, so the system stays focused on the same piece of work instead
+    of wandering off to research something tangential.
+    """
+    if not request.refinement_instruction.strip():
+        raise HTTPException(status_code=400, detail="Refinement instruction cannot be empty")
+
+    start = time.time()
+
+    try:
+        orchestrator = AgentSocietyOrchestrator()
+        result = orchestrator.refine(
+            original_task=request.original_task,
+            previous_output=request.previous_output,
+            refinement_instruction=request.refinement_instruction,
+            max_rounds=request.max_rounds,
+        )
+        elapsed = round(time.time() - start, 2)
+
+        session_id = save_session(
+            task=f"[REFINEMENT of: {request.original_task}] {request.refinement_instruction}",
+            plan="(refinement — plan unchanged from original task)",
+            research="(refinement — research unchanged from original task)",
+            final_output=result["final_output"],
+            rounds_completed=result["rounds_completed"],
+            efficiency_gain=result["efficiency_gain"],
+            conversation_log=result["conversation_log"],
+        )
+
+        return RefineResponse(
+            session_id=session_id,
+            final_output=result["final_output"],
             rounds_completed=result["rounds_completed"],
             efficiency_gain=result["efficiency_gain"],
             processing_time_seconds=elapsed,

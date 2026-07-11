@@ -55,6 +55,7 @@ class CriticAgent(BaseAgent):
             memory=memory,
             name="critic",
             role_prompt=CRITIC_ROLE,
+            max_tokens=800,   # Scores and short critique notes — no need for 3000
         )
 
     def run(self, prompt: str) -> str:

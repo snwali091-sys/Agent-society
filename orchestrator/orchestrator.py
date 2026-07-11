@@ -33,7 +33,9 @@ client = OpenAI(
     base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 )
 
-MODEL = "qwen-plus"   # You can also use qwen-max, qwen-turbo
+MODEL = "qwen-plus"        # Used by Writer, Researcher, Executor — needs depth
+FAST_MODEL = "qwen-turbo"  # Used by Planner, Critic — structured, short output,
+                            # doesn't need the heavier model, and responds faster
 
 
 class AgentSocietyOrchestrator:
@@ -46,15 +48,15 @@ class AgentSocietyOrchestrator:
     def __init__(self):
         self.memory = SharedMemory()          # All agents share this "whiteboard"
         self.agents = {
-            "planner":    PlannerAgent(client, MODEL, self.memory),
+            "planner":    PlannerAgent(client, FAST_MODEL, self.memory),
             "researcher": ResearcherAgent(client, MODEL, self.memory),
             "writer":     WriterAgent(client, MODEL, self.memory),
-            "critic":     CriticAgent(client, MODEL, self.memory),
+            "critic":     CriticAgent(client, FAST_MODEL, self.memory),
             "executor":   ExecutorAgent(client, MODEL, self.memory),
         }
         self.conversation_log = []            # Full audit trail of agent dialogue
 
-    def run(self, user_task: str, max_rounds: int = 3) -> dict:
+    def run(self, user_task: str, max_rounds: int = 2) -> dict:
         """
         Main entry point. Give it a task, it returns a complete result.
 
@@ -140,6 +142,69 @@ class AgentSocietyOrchestrator:
             "final_output": final_result,
             "plan": plan,
             "research_summary": research,
+            "rounds_completed": round_num,
+            "conversation_log": self.conversation_log,
+            "efficiency_gain": self._calculate_efficiency(),
+        }
+
+    def refine(self, original_task: str, previous_output: str, refinement_instruction: str, max_rounds: int = 2) -> dict:
+        """
+        Continues work on an EXISTING result instead of starting a new task
+        from scratch. This is what powers the "Refine this" feature — the
+        Writer revises the actual previous output based on new instructions,
+        and the Critic checks the revision, without re-running Planner or
+        Researcher (the original plan and facts are still valid; only the
+        expression of the content needs adjusting).
+
+        Example use: user says "make this shorter" or "add more data on
+        risk mitigation" after already receiving a full report.
+        """
+        print(f"\n🔁 REFINING PREVIOUS RESULT")
+        print(f"📋 Original task: {original_task}")
+        print(f"✏️  Refinement request: {refinement_instruction}\n")
+
+        self.memory.set("original_task", original_task)
+        self.memory.set("current_draft", previous_output)
+
+        draft = previous_output
+        for round_num in range(1, max_rounds + 1):
+            print(f"✍️  [WRITER] Applying refinement (round {round_num})...")
+            writer_prompt = (
+                f"Original task: {original_task}\n\n"
+                f"Here is the previously delivered output:\n{draft}\n\n"
+                f"The user has requested this specific change:\n\"{refinement_instruction}\"\n\n"
+                "Revise the output above to satisfy this request. Keep everything that "
+                "already works well — do not start over or change unrelated sections. "
+                "Return the complete revised document, not just the changed part."
+            )
+            draft = self.agents["writer"].run(writer_prompt)
+            self.memory.set("current_draft", draft)
+            self._log("writer", "orchestrator", draft)
+
+            print(f"🔎 [CRITIC] Checking the refinement (round {round_num})...")
+            critique = self.agents["critic"].run(
+                f"Original task: {original_task}\n\n"
+                f"Requested change: \"{refinement_instruction}\"\n\n"
+                f"Revised draft:\n{draft}\n\n"
+                "Confirm whether the requested change was correctly applied "
+                "without breaking anything else. If yes, say APPROVED."
+            )
+            self.memory.set("critique", critique)
+            self._log("critic", "writer", critique)
+
+            if "APPROVED" in critique.upper():
+                print(f"✅ [CRITIC] Refinement APPROVED in round {round_num}!")
+                break
+
+        print("\n📦 [EXECUTOR] Packaging refined output...")
+        final_result = self.agents["executor"].run(
+            f"Original task: {original_task}\n\nRefined draft:\n{draft}\n\n"
+            "Package this into a polished, well-structured final response."
+        )
+        self._log("executor", "user", final_result)
+
+        return {
+            "final_output": final_result,
             "rounds_completed": round_num,
             "conversation_log": self.conversation_log,
             "efficiency_gain": self._calculate_efficiency(),

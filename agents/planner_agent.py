@@ -49,6 +49,7 @@ class PlannerAgent(BaseAgent):
             memory=memory,
             name="planner",
             role_prompt=PLANNER_ROLE,
+            max_tokens=900,   # Plans are short and structured — no need for 3000
         )
 
     def run(self, prompt: str) -> str:

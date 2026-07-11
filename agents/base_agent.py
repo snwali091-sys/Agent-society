@@ -15,12 +15,17 @@ from memory.shared_memory import SharedMemory
 
 
 class BaseAgent:
-    def __init__(self, client, model: str, memory: SharedMemory, name: str, role_prompt: str):
+    def __init__(self, client, model: str, memory: SharedMemory, name: str,
+                 role_prompt: str, max_tokens: int = 3000):
         self.client = client
         self.model = model
         self.memory = memory
         self.name = name
         self.role_prompt = role_prompt   # This is the agent's "personality"
+        self.max_tokens = max_tokens     # Structured agents (Planner, Critic) use a
+                                          # smaller budget — their output is naturally
+                                          # short, and a lower cap means Qwen Cloud
+                                          # returns faster instead of over-generating
 
     def run(self, prompt: str) -> str:
         """
@@ -39,7 +44,7 @@ class BaseAgent:
                 {"role": "user",   "content": context},
             ],
             temperature=0.7,
-            max_tokens=3000,
+            max_tokens=self.max_tokens,
         )
         result = response.choices[0].message.content
 

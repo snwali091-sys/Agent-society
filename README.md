@@ -16,14 +16,20 @@ Give Agent Society any complex task. It automatically:
 5. **Refines** — Writer incorporates feedback and improves (up to N rounds)
 6. **Delivers** — An Executor packages the polished final result
 
-All agents share a **common memory whiteboard** and can speak directly to each other. Every session is also persisted to a lightweight **SQLite database** so past runs can be reviewed later — see `database/` below.
+All agents share a **common memory whiteboard** and can speak directly to each other. Every session is persisted to a **SQLite database**, viewable through the web interface or `view_sessions.py`.
+
+### New — Refine Without Restarting
+After receiving a result, you can ask the system to adjust it — "make it shorter," "add more detail on risk mitigation" — and the Writer and Critic revise the **existing output directly**, without re-running the Planner or Researcher from scratch. This keeps follow-up requests focused on the same piece of work instead of wandering into unrelated territory.
+
+### New — Copy, Download, and Session History
+Every result can be **copied to clipboard** or **downloaded as a Markdown file** with one click. All tasks run during a session appear in a **Previous Tasks** list — click any entry to instantly bring that result back on screen without re-running anything.
 
 ---
 
 ## Architecture
 
 ```
-User (CLI / API / minimal web UI)
+User (Web UI or CLI)
     │
     ▼
 ┌─────────────┐
@@ -37,34 +43,31 @@ User (CLI / API / minimal web UI)
        │       │        │        │
   ┌────▼──┐ ┌──▼────┐ ┌─▼─────┐ ┌▼───────┐ ┌─────────┐
   │PLANNER│ │RESRCH │ │WRITER │ │CRITIC │ │EXECUTOR │
+  │(fast) │ │       │ │       │ │(fast) │ │         │
   └───────┘ └───────┘ └───────┘ └───────┘ └─────────┘
        │                  ▲           │
        │                  └───────────┘
-       │               Critic ↔ Writer loop
+       │             Critic ↔ Writer negotiation loop
        ▼
-  Qwen Cloud (DashScope API) → all 5 agents call this
+  Qwen Cloud (DashScope API, international endpoint)
        │
        ▼
-  SQLite Database (sessions.db) → persists every run
+  SQLite Database (sessions.db) — persists every run
        │
        ▼
   Final Output + Audit Log + Efficiency Metrics
        │
        ▼
-  Minimal Web UI (frontend/index.html) → displays results
+  Web Frontend — served directly by FastAPI at http://localhost:8000
 ```
 
-**All agents are powered by Qwen Cloud (DashScope API).**
-**Backend deployed on Alibaba Cloud ECS.**
-**Sessions persisted to SQLite locally, and optionally mirrored to Alibaba Cloud OSS.**
+Planner and Critic use `qwen-turbo` (faster, tuned for structured output); Writer, Researcher, and Executor use `qwen-plus` (deeper generation quality). This split was made specifically to reduce total response time without sacrificing output quality.
 
-See `architecture_diagram.html` for the full visual diagram including the database and frontend layers.
+**Full visual diagram:** `architecture_diagram_v2.jpg`
 
 ---
 
-## ⚠️ Verified Setup Steps (Tested End-to-End)
-
-These are the **exact steps that were confirmed working**, including fixes for common issues.
+## Quick Start
 
 ### 1. Clone and enter the project
 ```bash
@@ -77,95 +80,56 @@ cd Agent-society
 pip install -r requirements.txt
 ```
 
-### 3. Create your `.env` file
-Copy the template and fill in your real key:
+### 3. Set up your API key
 ```bash
 cp .env.example .env
 ```
-Open `.env` and add your Qwen Cloud key:
+Edit `.env` and add your key from **home.qwencloud.com**:
 ```
 DASHSCOPE_API_KEY=sk-your-real-key-here
 ```
 
-Get your key from **https://home.qwencloud.com/api-keys**
+### 4. Launch the application
 
-### 4. IMPORTANT — Confirm the correct API endpoint
-
-Qwen Cloud (home.qwencloud.com) keys require the **international** DashScope endpoint, not the default one. This is already set correctly in `orchestrator/orchestrator.py` and `benchmark.py`:
-
-```python
-base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+**Option A — One-click desktop launch (Windows):**
+Run once to create a desktop icon:
+```powershell
+powershell -ExecutionPolicy Bypass -File Create_Desktop_Shortcut.ps1
 ```
+Then double-click **Agent Society** on your Desktop any time.
 
-> If you generated your key from a different Alibaba Cloud region, verify this matches your account's documentation before running.
-
-### 5. Verify your key works
+**Option B — Manual (works on any platform, shows live logs):**
 ```bash
-python test_key.py
+uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
-Expected output:
-```
-Key found: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
-SUCCESS: Hello! How can I assist you today?
-```
+Then open `http://localhost:8000` in your browser.
 
-### 6. Run the offline simulator (no API key needed)
-```bash
-python simulate.py
-```
-This proves the full pipeline logic works before spending any API credits.
-
-### 7. Run a real task
-```bash
-python main.py --demo
-```
-Or with your own task:
+**Option C — Command line only, no browser:**
 ```bash
 python main.py --task "Write a go-to-market strategy for an AI tutoring app in Nigeria"
 ```
 
-### 8. Start the API backend
+---
+
+## Using the Web Interface
+
+1. Type a task and click **Run Agent Society**
+2. Watch the live status while all five agents work
+3. Once complete, use the **Refine** box to request adjustments to the same result
+4. Use **Copy** or **Download** to save the output
+5. Every task appears in the **Previous tasks** history — click any entry to bring it back
+
+---
+
+## Command Line Usage
+
 ```bash
-uvicorn api.main:app --reload --port 8000
+python main.py --demo                          # Run a preset demo task
+python main.py --task "Your task here"          # Run your own task
+python main.py --benchmark                      # Compare vs single-agent baseline
+python view_sessions.py                         # View all saved sessions
+python view_sessions.py --id 3                   # View one session in full detail
 ```
-Visit `http://localhost:8000/docs` for the interactive API explorer.
-
-### 9. Open the minimal web frontend
-Open `frontend/index.html` directly in your browser (after starting the API server in step 8). It submits tasks to your local API and displays the agent results.
-
-### 10. View past sessions in the database
-```bash
-python view_sessions.py
-```
-This reads `database/sessions.db` and prints a history of every task run, its plan, final output, and quality score.
-
----
-
-## Common Setup Issues (Already Fixed in This Repo)
-
-| Issue | Fix Already Applied |
-|---|---|
-| `ModuleNotFoundError: No module named 'agents'` | `__init__.py` files included in `agents/`, `memory/`, `orchestrator/`, `api/` |
-| `401 AuthenticationError` | Correct international endpoint set in code — see step 4 above |
-| API key not loading | `load_dotenv()` called at the top of `orchestrator.py` and `benchmark.py` before any API calls |
-| Running scripts from wrong folder | Always run commands from the **repository root** — the folder containing `main.py` |
-
----
-
-## Architecture
-
-See the full diagram in `architecture_diagram.html` — includes Qwen Cloud, FastAPI backend, SQLite database, Alibaba Cloud OSS, and the minimal frontend, all connected.
-
----
-
-## Hackathon Criteria — How We Score
-
-| Criterion | Implementation |
-|-----------|----------------|
-| **Innovation & AI Creativity (30%)** | Custom multi-agent negotiation protocol; Critic-Writer refinement loop; agent-to-agent direct messaging |
-| **Technical Depth (30%)** | Modular agent architecture; shared memory system; SQLite persistence; configurable round limits; full audit trail |
-| **Problem Value & Impact (25%)** | Benchmark proves measurable quality gain; real-world tasks (reports, analysis, planning) |
-| **Presentation & Documentation (15%)** | Architecture diagram above; this README; interactive demo UI; video walkthrough |
 
 ---
 
@@ -173,46 +137,72 @@ See the full diagram in `architecture_diagram.html` — includes Qwen Cloud, Fas
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | System info |
+| `/` | GET | Serves the web frontend |
+| `/api` | GET | System info (JSON) |
 | `/status` | GET | Health check |
-| `/run` | POST | Submit a task |
-| `/demo` | GET | Run preset demo |
-| `/sessions` | GET | List past sessions from the database |
+| `/run` | POST | Submit a new task |
+| `/refine` | POST | Refine an existing result |
+| `/sessions` | GET | List all saved sessions |
+| `/sessions/{id}` | GET | View one session in full |
+| `/demo` | GET | Run a preset demo task |
+| `/docs` | GET | Interactive API documentation (Swagger UI) |
 
-**Example request:**
-```bash
-curl -X POST http://localhost:8000/run \
-  -H "Content-Type: application/json" \
-  -d '{"task": "Analyse the competitive landscape for no-code AI tools", "max_rounds": 2}'
+---
+
+## Verified Setup Notes
+
+| Issue | Resolution Already Applied |
+|-------|----------------------------|
+| `ModuleNotFoundError` | `__init__.py` present in every module folder |
+| `401 AuthenticationError` | International DashScope endpoint set correctly in `orchestrator.py` |
+| API key not loading | `load_dotenv()` called before any API client is created |
+| Slow response times | Planner/Critic use `qwen-turbo`; token budgets reduced for structured agents; default rounds lowered |
+| Markdown showing raw `**`/`##` | Custom renderer processes lists before bold/italic; safety net strips any leftover stray markers |
+
+Always run all commands from the **repository root** — the folder containing `main.py`.
+
+---
+
+## Alibaba Cloud Deployment
+
+- **Qwen Cloud (DashScope)** — All 5 agents call the international endpoint
+- **Alibaba Cloud ECS** — Backend deployment target (Ubuntu 22.04, Singapore region)
+- **Alibaba Cloud OSS** — Session log mirroring for durability
+- Full deployment code and instructions: `alibaba_cloud_deploy.py`
+
+---
+
+## Hackathon Criteria — How We Score
+
+| Criterion | Implementation |
+|-----------|----------------|
+| **Innovation & AI Creativity (30%)** | Custom Critic-Writer negotiation loop; refine-without-restart capability; per-agent model tuning for speed |
+| **Technical Depth (30%)** | Modular architecture; SQLite persistence; REST API; configurable rounds; full audit trail |
+| **Problem Value & Impact (25%)** | `benchmark.py` proves measurable quality gain over single-agent baseline |
+| **Presentation & Documentation (15%)** | Architecture diagram, this README, live web demo, video walkthrough |
+
+---
+
+## Project Structure
+
 ```
-
----
-
-## Alibaba Cloud Integration
-
-- **Qwen Cloud (DashScope)** — All 5 agents use `qwen-plus` model via the OpenAI-compatible international endpoint
-- **Alibaba Cloud ECS** — API server hosted on `ecs.c7.xlarge` (Singapore region)
-- **Alibaba Cloud OSS** — Session logs and memory snapshots mirrored to OSS bucket
-- **SQLite** — Local persistence layer, mirrored to OSS for durability
-- See `alibaba_cloud_deploy.py` for full deployment code and instructions
-
----
-
-## Track 3 Requirements — Checklist
-
-- [x] **Multiple agents with distinct capabilities** — 5 specialized agents
-- [x] **Task decomposition and role assignment** — Planner explicitly assigns subtasks
-- [x] **Dialogue and negotiation** — Critic-Writer refinement loop
-- [x] **Conflict resolution** — Critic scores and Writer must address all critique points
-- [x] **Measurable efficiency gain** — `benchmark.py` compares multi-agent vs single-agent
-- [x] **Qwen Cloud** — All LLM calls go through DashScope API
-- [x] **Alibaba Cloud deployment** — ECS + OSS integration
-- [x] **Database persistence** — SQLite session history
-- [x] **Frontend** — Minimal web UI in `frontend/index.html`
-- [x] **Architecture diagram** — Includes database and frontend layers
-- [x] **Open source license** — MIT License
-- [x] **Public code repository** — This repo
-- [x] **Verified installation steps** — Tested end-to-end, documented above
+agent_society/
+├── agents/              # Five specialist agents
+├── api/                 # FastAPI backend (serves frontend + REST API)
+├── database/             # SQLite persistence layer
+├── frontend/             # Web interface
+├── memory/               # Shared whiteboard
+├── orchestrator/          # Master coordinator + refine logic
+├── main.py                # CLI entry point
+├── simulate.py             # Offline demo (no API key needed)
+├── benchmark.py             # Efficiency comparison tool
+├── view_sessions.py          # Database session viewer
+├── alibaba_cloud_deploy.py    # Cloud deployment code
+├── Create_Desktop_Shortcut.ps1 # One-click launcher setup
+├── Launch_Silent.ps1            # Background launch logic
+├── Start_Manually.bat            # Visible fallback launcher
+└── architecture_diagram_v2.jpg    # Full system diagram
+```
 
 ---
 

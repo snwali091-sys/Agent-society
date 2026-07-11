@@ -2,35 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Agent Society — Web Interface</title>
+<title>Agent Society</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #0d1117; color: #e8ecf1; padding: 40px; }
-  .container { max-width: 850px; margin: 0 auto; }
-  h1 { font-size: 28px; margin-bottom: 6px; }
-  p.sub { color: #8b949e; margin-bottom: 30px; }
+  .container { max-width: 880px; margin: 0 auto; }
 
-  textarea { width: 100%; height: 90px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; color: #e8ecf1; padding: 14px; font-size: 15px; font-family: inherit; resize: vertical; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .brand-icon { width: 32px; height: 32px; }
+  h1 { font-size: 26px; font-weight: 700; }
+  p.sub { color: #8b949e; margin-bottom: 26px; font-size: 14px; }
+
+  textarea { width: 100%; height: 84px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; color: #e8ecf1; padding: 14px; font-size: 15px; font-family: inherit; resize: vertical; }
   textarea:focus { outline: none; border-color: #2e8ae6; }
 
   .row { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
-  button { background: #2e8ae6; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  button { background: #2e8ae6; color: white; border: none; padding: 11px 26px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
-  button:hover:not(:disabled) { opacity: 0.9; }
+  button:hover:not(:disabled) { opacity: 0.88; }
+  button.secondary { background: #21262d; border: 1px solid #30363d; }
+  button.small { padding: 7px 16px; font-size: 13px; }
 
-  .status { font-size: 14px; color: #f0d264; display: flex; align-items: center; gap: 10px; }
-  .spinner { width: 16px; height: 16px; border: 2px solid #30363d; border-top-color: #f0d264; border-radius: 50%; animation: spin 0.8s linear infinite; display: none; }
+  .status { font-size: 13px; color: #f0d264; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 15px; height: 15px; border: 2px solid #30363d; border-top-color: #f0d264; border-radius: 50%; animation: spin .8s linear infinite; display: none; }
   .spinner.active { display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .status.error { color: #ff9490; }
+  .status.success { color: #6ee8be; }
 
-  .metrics { display: flex; gap: 16px; margin-top: 20px; }
-  .metric { background: #1b2129; border-radius: 8px; padding: 12px 20px; text-align: center; flex: 1; }
-  .metric .val { font-size: 22px; font-weight: 700; color: #6ee8be; }
-  .metric .lbl { font-size: 12px; color: #8b949e; margin-top: 4px; }
+  .metrics { display: flex; gap: 14px; margin-top: 20px; }
+  .metric { background: #1b2129; border-radius: 8px; padding: 12px 18px; text-align: center; flex: 1; }
+  .metric .val { font-size: 20px; font-weight: 700; color: #6ee8be; }
+  .metric .lbl { font-size: 11px; color: #8b949e; margin-top: 3px; }
 
-  /* ---- Rendered markdown output styling ---- */
-  .result { margin-top: 24px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 28px 32px; display: none; line-height: 1.7; font-size: 15px; }
-  .result h1, .result h2, .result h3, .result h4, .result h5, .result h6 { color: #ffffff; margin: 22px 0 10px; font-weight: 700; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; }
+  .toolbar .actions { display: flex; gap: 8px; }
+
+  .result { margin-top: 10px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 26px 30px; display: none; line-height: 1.7; font-size: 15px; }
+  .result h1, .result h2, .result h3, .result h4, .result h5, .result h6 { color: #fff; margin: 20px 0 10px; font-weight: 700; }
   .result h1:first-child, .result h2:first-child, .result h3:first-child, .result h4:first-child { margin-top: 0; }
   .result h1 { font-size: 22px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
   .result h2 { font-size: 19px; color: #8ecbff; }
@@ -38,7 +47,7 @@
   .result h4 { font-size: 15px; color: #ffb454; }
   .result h5, .result h6 { font-size: 14px; color: #c9d1d9; }
   .result p { margin: 10px 0; color: #dfe4ea; }
-  .result strong { color: #ffffff; font-weight: 700; }
+  .result strong { color: #fff; font-weight: 700; }
   .result em { color: #c9d1d9; font-style: italic; }
   .result ul, .result ol { margin: 8px 0 14px 22px; color: #dfe4ea; }
   .result li { margin: 5px 0; }
@@ -46,20 +55,37 @@
   .result hr { border: none; border-top: 1px solid #30363d; margin: 18px 0; }
   .result table { border-collapse: collapse; width: 100%; margin: 14px 0; }
   .result th, .result td { border: 1px solid #30363d; padding: 8px 12px; text-align: left; font-size: 14px; }
-  .result th { background: #1b2129; color: #ffffff; }
+  .result th { background: #1b2129; color: #fff; }
 
-  .apiurl { font-size: 13px; color: #6a7280; margin-top: 34px; padding-top: 16px; border-top: 1px solid #21262d; }
-  input.apiinput { background: #161b22; border: 1px solid #30363d; color: #e8ecf1; padding: 6px 10px; border-radius: 6px; font-size: 13px; width: 220px; margin-left: 8px; }
-  .hint { font-size: 12px; color: #6a7280; margin-top: 8px; }
+  .refine-box { display: none; margin-top: 14px; background: #12161d; border: 1px solid #2a313b; border-radius: 10px; padding: 16px 20px; }
+  .refine-row { display: flex; gap: 10px; }
+  .refine-row input { flex: 1; background: #161b22; border: 1px solid #30363d; border-radius: 8px; color: #e8ecf1; padding: 10px 14px; font-size: 14px; }
+  .refine-row input:focus { outline: none; border-color: #2e8ae6; }
+  .refine-row button { background: #1BA37E; white-space: nowrap; }
+
+  .history { margin-top: 30px; }
+  .history-title { font-size: 13px; color: #8b949e; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em; }
+  .history-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: #c9d1d9; display: flex; justify-content: space-between; align-items: center; }
+  .history-item:hover { border-color: #2e8ae6; }
+  .history-item .htxt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 12px; }
+  .history-item .htag { font-size: 11px; color: #6ee8be; background: #0d2921; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .history-item.active { border-color: #6ee8be; }
+
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #21262d; font-size: 12px; color: #4d545e; text-align: center; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1b2129; border: 1px solid #30363d; color: #6ee8be; padding: 10px 22px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>🤖 Agent Society</h1>
-  <p class="sub">Enter a task: The five AI agents will collaborate to complete it </p>
+  <div class="brand">
+    <svg class="brand-icon" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#2E8AE6"/><circle cx="12" cy="6" r="1.8" fill="white"/><circle cx="7" cy="10" r="1.8" fill="#C8B4FF"/><circle cx="17" cy="10" r="1.8" fill="#6EE8BE"/><circle cx="9" cy="16" r="1.8" fill="#FF785A"/><circle cx="15" cy="16" r="1.8" fill="#FFB454"/></svg>
+    <h1>Agent Society</h1>
+  </div>
+  <p class="sub">Five AI agents collaborate to plan, research, write, review, and deliver your task.</p>
 
   <textarea id="task" placeholder="e.g. Write a go-to-market strategy for an AI tutoring app in Nigeria"></textarea>
-  <div class="hint">Typical tasks take 30–90 seconds — five agents are calling Qwen Cloud in sequence, plus revision rounds.</div>
 
   <div class="row">
     <button id="runBtn" onclick="runTask()">Run Agent Society</button>
@@ -75,32 +101,44 @@
     <div class="metric"><div class="val" id="mTime">-</div><div class="lbl">Time (s)</div></div>
   </div>
 
+  <div class="toolbar" id="toolbar" style="display:none">
+    <div></div>
+    <div class="actions">
+      <button class="secondary small" onclick="copyResult()">Copy</button>
+      <button class="secondary small" onclick="downloadResult()">Download</button>
+    </div>
+  </div>
+
   <div class="result" id="result"></div>
 
-  <div class="apiurl">
-    API endpoint:
-    <input class="apiinput" id="apiUrl" value="/run">
+  <div class="refine-box" id="refineBox">
+    <div class="refine-row">
+      <input type="text" id="refineInput" placeholder="Refine this result — e.g. make it shorter, add more detail on risk">
+      <button id="refineBtn" onclick="refineTask()">Refine</button>
+    </div>
   </div>
+
+  <div class="history" id="historySection" style="display:none">
+    <div class="history-title">Previous tasks</div>
+    <div id="historyList"></div>
+  </div>
+
+  <footer>Agent Society &middot; Powered by Qwen Cloud</footer>
 </div>
 
-<script>
-/* ---------------------------------------------------------------------
-   Markdown -> HTML converter (dependency-free, tuned to what the
-   agents actually output: #### headers, mixed - and * bullets,
-   **bold**, numbered lists, simple pipe tables, horizontal rules).
+<div class="toast" id="toast"></div>
 
-   CRITICAL ORDER: lists are extracted BEFORE bold/italic conversion.
-   Doing it in the opposite order (as the first version of this file did)
-   causes stray "* " bullet markers to get half-eaten by the italic
-   regex, corrupting entire sections — that was the bug reported.
---------------------------------------------------------------------- */
+<script>
+/* =====================================================================
+   MARKDOWN RENDERER
+   Order matters: lists are extracted BEFORE bold/italic, otherwise a
+   stray "* " list marker gets half-eaten by the italic regex and
+   corrupts formatting downstream. This was the original bug.
+===================================================================== */
 function renderMarkdown(md) {
   let html = md;
-
-  // 1. Escape raw HTML first
   html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  // 2. Headers — supports 1 to 6 #'s, with or without a space after them
   html = html.replace(/^#{6}\s*(.*)$/gm, '<h6>$1</h6>');
   html = html.replace(/^#{5}\s*(.*)$/gm, '<h5>$1</h5>');
   html = html.replace(/^#{4}\s*(.*)$/gm, '<h4>$1</h4>');
@@ -108,10 +146,8 @@ function renderMarkdown(md) {
   html = html.replace(/^#{2}\s*(.*)$/gm, '<h2>$1</h2>');
   html = html.replace(/^#{1}\s*(.*)$/gm, '<h1>$1</h1>');
 
-  // 3. Horizontal rules
   html = html.replace(/^(---+|===+)\s*$/gm, '<hr>');
 
-  // 4. Tables (simple pipe-delimited)
   html = html.replace(/((?:^\|.*\|\s*$\n?)+)/gm, function(block) {
     const rows = block.trim().split('\n').filter(r => !/^\|[\s:|-]+\|$/.test(r));
     if (rows.length === 0) return block;
@@ -125,11 +161,6 @@ function renderMarkdown(md) {
     return out;
   });
 
-  // 5. LISTS — extracted BEFORE bold/italic, this is the fix.
-  //    Handles "- ", "* ", "• " and numbered "1. " as list markers,
-  //    including lines with leading spaces (indented / nested bullets).
-  //    Nested items are flattened into one list — good enough for
-  //    agent-generated reports, avoids a full recursive parser.
   html = html.replace(/(^[ \t]*[-*•][ \t]+.+$(?:\n[ \t]*[-*•][ \t]+.+$)*)/gm, function(block) {
     const items = block.split('\n').map(l => l.replace(/^[ \t]*[-*•][ \t]+/, '').trim());
     return '<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
@@ -140,23 +171,14 @@ function renderMarkdown(md) {
     return '<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>';
   });
 
-  // 6. Bold and italic — runs AFTER lists, so no stray "* " markers
-  //    are left at line-start to confuse the italic regex.
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^\*\n]+?)\*/g, '<em>$1</em>');
-
-  // 7. Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-  // 7b. SAFETY NET — strip any leftover unmatched ** or * markers.
-  //     These usually appear when the AI response got cut off mid-format
-  //     (hit a token limit) before a closing "**" arrived. Better to show
-  //     clean text than a stray pair of asterisks.
+  // Safety net — strip any leftover unmatched markers (e.g. from truncated responses)
   html = html.replace(/\*\*/g, '');
   html = html.replace(/(?<![a-zA-Z0-9])\*(?![a-zA-Z0-9])/g, '');
 
-  // 8. Wrap remaining plain-text blocks in <p>, skip anything
-  //    already wrapped in a block tag by the steps above.
   html = html.split(/\n{2,}/).map(block => {
     const trimmed = block.trim();
     if (!trimmed) return '';
@@ -167,64 +189,239 @@ function renderMarkdown(md) {
   return html;
 }
 
+/* =====================================================================
+   STATE
+===================================================================== */
 let statusInterval = null;
+let currentTask = null;
+let currentOutputRaw = null;      // raw markdown, used for copy/download
+let sessionHistory = [];          // { task, output, timestamp }
+let activeHistoryIndex = -1;
 
+function setStatus(text, cls) {
+  const el = document.getElementById('statusText');
+  const wrap = document.getElementById('status');
+  el.textContent = text;
+  wrap.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+function startTimer(label) {
+  let seconds = 0;
+  setStatus(`${label} — 0s elapsed`);
+  return setInterval(() => {
+    seconds++;
+    setStatus(`${label} — ${seconds}s elapsed`);
+  }, 1000);
+}
+
+function showResult(rawText, metrics) {
+  currentOutputRaw = rawText;
+  document.getElementById('result').innerHTML = renderMarkdown(rawText);
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('toolbar').style.display = 'flex';
+  document.getElementById('refineBox').style.display = 'block';
+
+  if (metrics) {
+    document.getElementById('mRounds').textContent = metrics.rounds_completed;
+    document.getElementById('mEff').textContent = metrics.efficiency_gain;
+    document.getElementById('mTime').textContent = metrics.processing_time_seconds;
+    document.getElementById('metrics').style.display = 'flex';
+  }
+}
+
+/* =====================================================================
+   RUN — submit a brand new task
+===================================================================== */
 async function runTask() {
   const task = document.getElementById('task').value.trim();
-  const apiUrl = document.getElementById('apiUrl').value.trim();
   const btn = document.getElementById('runBtn');
-  const statusText = document.getElementById('statusText');
   const spinner = document.getElementById('spinner');
-  const result = document.getElementById('result');
-  const metrics = document.getElementById('metrics');
 
   if (!task) {
-    statusText.textContent = 'Please enter a task first.';
+    setStatus('Please enter a task first.', 'error');
     return;
   }
 
   btn.disabled = true;
   spinner.classList.add('active');
-  result.style.display = 'none';
-  metrics.style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('metrics').style.display = 'none';
+  document.getElementById('toolbar').style.display = 'none';
+  document.getElementById('refineBox').style.display = 'none';
 
-  let seconds = 0;
-  statusText.textContent = `Working — 0s elapsed`;
-  statusInterval = setInterval(() => {
-    seconds++;
-    statusText.textContent = `Working — ${seconds}s elapsed (Planner → Researcher → Writer → Critic → Executor)`;
-  }, 1000);
+  statusInterval = startTimer('Working');
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch('/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task: task, max_rounds: 2 })
     });
 
-    if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
     const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || `Server error (${response.status})`);
+    }
 
     clearInterval(statusInterval);
     spinner.classList.remove('active');
-    statusText.textContent = '✅ Complete';
+    setStatus('Complete', 'success');
 
-    document.getElementById('mRounds').textContent = data.rounds_completed;
-    document.getElementById('mEff').textContent = data.efficiency_gain;
-    document.getElementById('mTime').textContent = data.processing_time_seconds;
-    metrics.style.display = 'flex';
+    showResult(data.final_output, data);
 
-    result.innerHTML = renderMarkdown(data.final_output);
-    result.style.display = 'block';
+    currentTask = task;
+    sessionHistory.push({ task: task, output: data.final_output, timestamp: new Date().toLocaleTimeString() });
+    activeHistoryIndex = sessionHistory.length - 1;
+    renderHistory();
+
+    document.getElementById('refineInput').value = '';
 
   } catch (err) {
     clearInterval(statusInterval);
     spinner.classList.remove('active');
-    statusText.textContent = `❌ Error: ${err.message}. Make sure the API server is running.`;
+    setStatus(err.message || 'Something went wrong. Please try again.', 'error');
   } finally {
     btn.disabled = false;
   }
+}
+
+/* =====================================================================
+   REFINE — continue the current result, don't start a new task
+===================================================================== */
+async function refineTask() {
+  const instruction = document.getElementById('refineInput').value.trim();
+  const refineBtn = document.getElementById('refineBtn');
+  const spinner = document.getElementById('spinner');
+
+  if (!instruction) return;
+
+  if (!currentOutputRaw || !currentTask) {
+    setStatus('Nothing to refine yet — run a task first.', 'error');
+    return;
+  }
+
+  refineBtn.disabled = true;
+  spinner.classList.add('active');
+  statusInterval = startTimer('Refining');
+
+  try {
+    const response = await fetch('/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        original_task: currentTask,
+        previous_output: currentOutputRaw,
+        refinement_instruction: instruction,
+        max_rounds: 1
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || `Server error (${response.status})`);
+    }
+
+    clearInterval(statusInterval);
+    spinner.classList.remove('active');
+    setStatus('Refined', 'success');
+
+    showResult(data.final_output, data);
+
+    sessionHistory.push({ task: currentTask + ' (refined: ' + instruction + ')', output: data.final_output, timestamp: new Date().toLocaleTimeString() });
+    activeHistoryIndex = sessionHistory.length - 1;
+    renderHistory();
+
+    document.getElementById('refineInput').value = '';
+
+  } catch (err) {
+    clearInterval(statusInterval);
+    spinner.classList.remove('active');
+    setStatus(err.message || 'Refinement failed. Please try again.', 'error');
+  } finally {
+    refineBtn.disabled = false;
+  }
+}
+
+/* =====================================================================
+   HISTORY — go back to any previous result this session
+===================================================================== */
+function renderHistory() {
+  const section = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+
+  if (sessionHistory.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  list.innerHTML = '';
+
+  sessionHistory.slice().reverse().forEach((item, revIdx) => {
+    const idx = sessionHistory.length - 1 - revIdx;
+    const div = document.createElement('div');
+    div.className = 'history-item' + (idx === activeHistoryIndex ? ' active' : '');
+    div.onclick = () => loadHistoryItem(idx);
+
+    const txt = document.createElement('div');
+    txt.className = 'htxt';
+    txt.textContent = item.task;
+
+    const tag = document.createElement('div');
+    tag.className = 'htag';
+    tag.textContent = item.timestamp;
+
+    div.appendChild(txt);
+    div.appendChild(tag);
+    list.appendChild(div);
+  });
+}
+
+function loadHistoryItem(idx) {
+  const item = sessionHistory[idx];
+  if (!item) return;
+  activeHistoryIndex = idx;
+  currentTask = item.task.split(' (refined:')[0];
+  showResult(item.output, null);
+  document.getElementById('metrics').style.display = 'none';
+  renderHistory();
+  window.scrollTo({ top: document.getElementById('result').offsetTop - 40, behavior: 'smooth' });
+}
+
+/* =====================================================================
+   COPY / DOWNLOAD
+===================================================================== */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function copyResult() {
+  if (!currentOutputRaw) return;
+  navigator.clipboard.writeText(currentOutputRaw).then(() => {
+    showToast('Copied to clipboard');
+  }).catch(() => {
+    showToast('Could not copy — try selecting the text manually');
+  });
+}
+
+function downloadResult() {
+  if (!currentOutputRaw) return;
+  const blob = new Blob([currentOutputRaw], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safeName = (currentTask || 'agent-society-result').slice(0, 50).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  a.download = `${safeName}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Downloaded');
 }
 </script>
 </body>
